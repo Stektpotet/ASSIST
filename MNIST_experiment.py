@@ -94,21 +94,21 @@ class BeliefMetrics(Trackable):
         plt.boxplot(torch.transpose(sorted_beliefs, 0, 1), showfliers=False, whis=(0, 100), zorder=1)
         plt.ylabel("Belief Strength")
         plt.xlabel("Classes")
-        self._imgs.append(fig2img(plt.gcf()))
         plt.show()
 
     def save_gif(self, name):
-        self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=10, loop=0)
+        self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=30, loop=0)
 
     def __call__(self, model: nn.Module, epoch: int, *args, **kwargs):
         if epoch % self._interval != 0:
             return
-        self.plot_softmax_distribution(model)
+        # self.plot_softmax_distribution(model)
+        self._imgs.append(fig2img(self.get_classwise_distributions_figure()))
         # wandb.log({'Belief Strength': plt})
 
 config = {
     'lr': 0.02,
-    'epochs': 2,
+    'epochs': 60,
     'filtering': True
 }
 
@@ -152,8 +152,6 @@ if __name__ == '__main__':
     trainer.on_end_epoch += belief_tracker_train
 
     trainer.train(model, config['epochs'])
-    # belief_tracker_test.save_gif('runs/test_'+run.name)
-    # belief_tracker_train.save_gif('runs/train_'+run.name)
 
     test_fig = belief_tracker_test.get_classwise_distributions_figure()
     train_fig = belief_tracker_train.get_classwise_distributions_figure()
@@ -161,19 +159,17 @@ if __name__ == '__main__':
     wandb.log({'beliefs/test distribution':  wandb.Image(test_fig, caption="Test belief distribution")})
     wandb.log({'beliefs/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
 
-    belief_tracker_test.get_belief_dataframe().to_pickle(os.path.join(wandb.run.dir, "beliefs", "test_beliefs.pkl"))
-    belief_tracker_train.get_belief_dataframe().to_pickle(os.path.join(wandb.run.dir, "beliefs", "train_beliefs.pkl"))
-    belief_tracker_test.plot_classwise_distributions(os.path.join(wandb.run.dir, "beliefs", "test_beliefs"))
-    belief_tracker_train.plot_classwise_distributions(os.path.join(wandb.run.dir, "beliefs", "train_beliefs"))
+    save_path = os.path.join(wandb.run.dir, "beliefs")
+
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    belief_tracker_test.get_belief_dataframe().to_pickle(os.path.join(save_path, "test_beliefs.pkl"))
+    belief_tracker_train.get_belief_dataframe().to_pickle(os.path.join(save_path, "train_beliefs.pkl"))
+    belief_tracker_test.plot_classwise_distributions(os.path.join(save_path, "test_beliefs"))
+    belief_tracker_train.plot_classwise_distributions(os.path.join(save_path, "train_beliefs"))
+    belief_tracker_test.save_gif(os.path.join(save_path, "test_beliefs"))
+    belief_tracker_train.save_gif(os.path.join(save_path, "train_beliefs"))
     wandb.save('beliefs/*')
 
-    # wandb.log({'beliefs image/test distribution': wandb.Image(test_fig, caption="Test belief distribution")})
-    # wandb.log({'beliefs image/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
-    # beliefs = wandb.Artifact("beliefs", type="beliefs")
-    # beliefs.add_file('runs/test_'+run.name)
-    # beliefs.add_file('runs/train_'+run.name)
-    # beliefs.add_file('runs/test_'+run.name+'.png')
-    # beliefs.add_file('runs/train_'+run.name+'.png')
-    # beliefs.add(wandb.Table(dataframe=belief_tracker_train.get_belief_dataframe()), 'train beliefs')
-    # wandb.log_artifact(beliefs)
     wandb.finish()
