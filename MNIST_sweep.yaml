@@ -1,0 +1,27 @@
+program: MNIST_sweep.py
+project: assist
+method: bayes
+metric:
+  goal: maximize
+  name: Test Accuracy
+parameters:
+  model:
+    values:
+      - "lenet"
+      - "fcnet1000"
+    distribution: categorical
+  lr:
+    value: 0.022
+  margin:
+    distribution: q_uniform
+    max: 0.999
+    min: 0.1
+    q: 0.1
+  q:
+    max: 0.999
+    min: 0.1
+    distribution: uniform
+  epochs:
+    value: 50
+  trainer:
+    value: 'margin'
