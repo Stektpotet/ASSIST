@@ -183,9 +183,6 @@ class AccumulativeAccuracyFilteringTrainer(ArchetypeTrainer):
             self.on_end_epoch(model, epoch)
         self.on_end_training(model)
 
-
-
-
 class AccumulativeSoftmaxMarginFilteringTrainer(ArchetypeTrainer):
 
     def __init__(self,

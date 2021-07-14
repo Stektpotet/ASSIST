@@ -18,11 +18,17 @@ from torchvision.datasets import MNIST
 from eventsystem.trackable import Trackable
 from pytorch_cifar.models1x32x32 import LeNet, FCNet100
 
+from experiment_util import experiment_argparse, models_1x32x32_10, make_model, make_trainer, make_scheduler
+
 from evaluation import Evaluator, DatasetEvaluator
 from trainers import AccumulativeAccuracyFilteringTrainer, ArchetypeTrainer, AccumulativeSoftmaxMarginFilteringTrainer
 import wandb
 from util.image_util import fig2img
 
+
+def parse_args() -> argparse.Namespace:
+    args_parser = argparse.ArgumentParser(description='MNIST Experiment')
+    return experiment_argparse(args_parser, models_1x32x32_10())
 
 def prepare_config(args: argparse.Namespace):
     config = dict(**args.__dict__)
@@ -43,8 +49,6 @@ def prepare_datasets():
     dataset_test = MNIST("./data/", train=False, download=True, transform=image_transform)
     dataset_train = MNIST("./data/", download=True, transform=image_transform_augm)
     return dataset_train, dataset_test, dataset_train
-
-
 
 
 class BeliefMetrics(Trackable):
@@ -106,31 +110,18 @@ class BeliefMetrics(Trackable):
         self._imgs.append(fig2img(self.get_classwise_distributions_figure()))
         # wandb.log({'Belief Strength': plt})
 
-config = {
-    'lr': 0.02,
-    'epochs': 60,
-    'filtering': True
-}
 
 if __name__ == '__main__':
+    args = parse_args()
+
     dataset_train, dataset_test, unaugmented = prepare_datasets()
 
-    model = FCNet100().cuda()
-    if config['filtering']:
-        trainer = AccumulativeSoftmaxMarginFilteringTrainer(
-            nn.CrossEntropyLoss(reduction='none'),
-            SGD(model.parameters(), lr=config['lr'], momentum=0.9, weight_decay=5e-4),
-            dataset=dataset_train, batch_size=2048*8, margin=0.3, q=0.75
-        )
-    else:
-        trainer = ArchetypeTrainer(
-            nn.CrossEntropyLoss(reduction='none'),
-            SGD(model.parameters(), lr=config['lr'], momentum=0.9, weight_decay=5e-4),
-            dataset=dataset_train, batch_size=2048 * 8
-        )
+    model = make_model(args.model, args)
+    trainer = make_trainer(args.trainer, model, dataset_train, args)
+    scheduler = make_scheduler(args.scheduler, trainer.optimizer, args)
 
-    loader_train = DataLoader(unaugmented, batch_size=2048 * 4, num_workers=2, pin_memory=True)
-    loader_test = DataLoader(dataset_test, batch_size=2048 * 4, num_workers=2, pin_memory=True)
+    loader_train = DataLoader(unaugmented, batch_size=2048 * 4, num_workers=args.num_workers, pin_memory=True)
+    loader_test = DataLoader(dataset_test, batch_size=2048 * 4, num_workers=args.num_workers, pin_memory=True)
 
     evaluator = Evaluator(
         wandb,
@@ -140,6 +131,8 @@ if __name__ == '__main__':
 
     belief_tracker_test = BeliefMetrics(loader_test, interval=10)
     belief_tracker_train = BeliefMetrics(loader_train, interval=10)
+
+    config = prepare_config(args)
 
     run = wandb.init(project='assist', entity='stektpotet', config=config)
     wandb.watch(model)
@@ -151,7 +144,7 @@ if __name__ == '__main__':
     trainer.on_end_epoch += belief_tracker_test
     trainer.on_end_epoch += belief_tracker_train
 
-    trainer.train(model, config['epochs'])
+    trainer.train(model, config['num_epochs'])
 
     test_fig = belief_tracker_test.get_classwise_distributions_figure()
     train_fig = belief_tracker_train.get_classwise_distributions_figure()
