@@ -52,7 +52,7 @@ def prepare_datasets():
 
 
 class BeliefMetrics(Trackable):
-    def __init__(self, dataloader: DataLoader, num_classes: int = 10, interval: int = 1):
+    def __init__(self, dataloader: DataLoader, num_classes: int = 10, interval: int = 1, gif_duration: float = 5):
         super().__init__(interval)
         self._interval = interval
         self._dataloader = dataloader
@@ -60,6 +60,11 @@ class BeliefMetrics(Trackable):
         self._beliefs = torch.empty((len(self._dataloader.dataset), self._num_classes), requires_grad=False, device='cuda:0')
         self._labels = torch.empty(len(self._dataloader.dataset), dtype=torch.int, requires_grad=False, device='cuda:0')
         self._imgs = []
+        self._duration = gif_duration
+
+    @property
+    def _ms_per_frame(self):
+        return self._duration * (1000 / len(self._imgs))
 
     def get_belief_dataframe(self):
         sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
@@ -102,7 +107,7 @@ class BeliefMetrics(Trackable):
         plt.show()
 
     def save_gif(self, name):
-        self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=30, loop=0)
+        self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=self._ms_per_frame, loop=0)
 
     def __call__(self, model: nn.Module, epoch: int, *args, **kwargs):
         if epoch % self._interval != 0:
