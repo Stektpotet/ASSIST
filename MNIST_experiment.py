@@ -80,7 +80,7 @@ class BeliefMetrics(Trackable):
                                                                               figsize=(22, 9), whis=(0, 100))
         return plots[0].get_figure()
 
-    def plot_softmax_distribution(self, model: nn.Module):
+    def update(self, model: nn.Module):
         with torch.no_grad():
             i = 0
             for batch, (x, y) in enumerate(self._dataloader):
@@ -89,7 +89,8 @@ class BeliefMetrics(Trackable):
                 self._labels[i:i + len(y)] = y
                 i += len(batch_beliefs)
 
-            sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
+    def plot_softmax_distribution(self):
+        sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
 
         l_max, h_min = sorted_beliefs[:, 0].max(), sorted_beliefs[:, 9].min()
 
@@ -107,6 +108,7 @@ class BeliefMetrics(Trackable):
         if epoch % self._interval != 0:
             return
         # self.plot_softmax_distribution(model)
+        self.update(model)
         self._imgs.append(fig2img(self.get_classwise_distributions_figure()))
         # wandb.log({'Belief Strength': plt})
 
