@@ -13,12 +13,13 @@ import torchvision
 from torch import nn, softmax
 from torch.optim import SGD
 from torch.utils.data import DataLoader, Dataset
-from torchvision.datasets import MNIST
+from torchvision import transforms
+from torchvision.datasets import MNIST, CIFAR10, CIFAR100
 
 from eventsystem.trackable import Trackable
-from pytorch_cifar.models1x32x32 import LeNet, FCNet100
-
-from experiment_util import experiment_argparse, models_1x32x32, make_model, make_trainer, make_scheduler
+from experiment_util import make_model, make_trainer, make_scheduler, experiment_argparse, models_1x32x32, \
+    models_3x32x32
+from pytorch_cifar.models3x32x32 import LeNet, FCNet100
 
 from evaluation import Evaluator, DatasetEvaluator
 from trainers import AccumulativeAccuracyFilteringTrainer, ArchetypeTrainer, AccumulativeSoftmaxMarginFilteringTrainer
@@ -26,9 +27,10 @@ import wandb
 from util.image_util import fig2img
 
 
+
 def parse_args() -> argparse.Namespace:
     args_parser = argparse.ArgumentParser(description='MNIST Experiment')
-    args = experiment_argparse(args_parser, models_1x32x32())
+    args = experiment_argparse(args_parser, models_3x32x32())
     return args
 
 def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
@@ -81,17 +83,25 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
     return config
 
 def prepare_datasets():
-    image_transform = torchvision.transforms.Compose([
-        torchvision.transforms.Pad(2),
-        torchvision.transforms.ToTensor(),
+    transform = transforms.Compose([
+        transforms.ToTensor(), # TODO: Find normalisation params for CIFAR100
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
     ])
-    image_transform_augm = torchvision.transforms.Compose([
-        torchvision.transforms.Pad(2),
-        torchvision.transforms.ToTensor(),
+
+    transform_augmented = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomAffine(
+            degrees=180,
+            translate=(0.1, 0.1), scale=(0.9, 1.1),
+        ),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ColorJitter(0.5, 0.5, 0.5, 0.05),
+        transform
     ])
-    dataset_test = MNIST("./data/", train=False, download=True, transform=image_transform)
-    dataset_train = MNIST("./data/", download=True, transform=image_transform_augm)
-    return dataset_train, dataset_test, dataset_train
+    dataset_test = CIFAR100("./data/", train=False, download=True, transform=transform)
+    dataset_train = CIFAR100("./data/", download=True, transform=transform_augmented)
+    dataset_train_unaugmented = CIFAR10("./data/", download=True, transform=transform)
+    return dataset_train, dataset_test, dataset_train_unaugmented
 
 
 class BeliefMetrics(Trackable):
@@ -199,7 +209,7 @@ if __name__ == '__main__':
     test_fig = belief_tracker_test.get_classwise_distributions_figure()
     train_fig = belief_tracker_train.get_classwise_distributions_figure()
 
-    wandb.log({'beliefs/test distribution':  wandb.Image(test_fig, caption="Test belief distribution")})
+    wandb.log({'beliefs/test distribution': wandb.Image(test_fig, caption="Test belief distribution")})
     wandb.log({'beliefs/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
 
     save_path = os.path.join(wandb.run.dir, "beliefs")

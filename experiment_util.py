@@ -103,7 +103,7 @@ def __models() -> Dict[str, __TModel]:
     }
 
 
-def models_3x32x32_10() -> Tuple[str, ...]:
+def models_3x32x32() -> Tuple[str, ...]:
     """
     Models that can take input shape 3x32x32 and return shape 10 (CIFAR10-like datasets)
     :return:
@@ -118,7 +118,7 @@ def models_3x32x32_10() -> Tuple[str, ...]:
     )
 
 
-def models_1x32x32_10() -> Tuple[str, ...]:
+def models_1x32x32() -> Tuple[str, ...]:
     """
     Models that can take input shape 1x32x32 and return shape 10 (MNIST-like datasets)
     :return:
