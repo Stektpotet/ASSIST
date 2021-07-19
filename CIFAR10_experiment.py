@@ -54,7 +54,6 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
     config["optimizer"] = config.pop("optimizer").__name__
     config["trainer"] = config.pop("trainer").__name__
     config["scheduler"] = config.pop("scheduler").__name__
-    config["Tags"] = config.pop("tags")
 
     if config['scheduler'] != 'multistep':
         config.pop('milestones')
@@ -194,7 +193,7 @@ if __name__ == '__main__':
 
     config = prepare_config(args)
 
-    run = wandb.init(project='assist', entity='stektpotet', config=config)
+    run = wandb.init(project='assist', entity='stektpotet', config=config, tags=config['tags'])
     wandb.watch(model)
 
     trainer.on_start_training += lambda m: evaluator.evaluate(m, 0)
