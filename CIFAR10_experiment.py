@@ -55,7 +55,7 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
     config["trainer"] = config.pop("trainer").__name__
     config["scheduler"] = config.pop("scheduler").__name__
 
-    if config['scheduler'] != 'multistep':
+    if config['scheduler'] != 'MultiStepLR':
         config.pop('milestones')
         if config['scheduler'] == 'NOPScheduler':
             config.pop('scheduler')

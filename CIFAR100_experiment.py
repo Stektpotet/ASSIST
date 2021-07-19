@@ -55,7 +55,7 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
     config["trainer"] = config.pop("trainer").__name__
     config["scheduler"] = config.pop("scheduler").__name__
 
-    if config['scheduler'] != 'multistep':
+    if config['scheduler'] != 'MultiStepLR':
         config.pop('milestones')
         if config['scheduler'] == 'NOPScheduler':
             config.pop('scheduler')
@@ -99,7 +99,7 @@ def prepare_datasets():
     ])
     dataset_test = CIFAR100("./data/", train=False, download=True, transform=transform)
     dataset_train = CIFAR100("./data/", download=True, transform=transform_augmented)
-    dataset_train_unaugmented = CIFAR10("./data/", download=True, transform=transform)
+    dataset_train_unaugmented = CIFAR100("./data/", download=True, transform=transform)
     return dataset_train, dataset_test, dataset_train_unaugmented
 
 #
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     dataset_train, dataset_test, unaugmented = prepare_datasets()
-
+    args.num_classes = 100
     model = make_model(args.model, args)
     trainer = make_trainer(args.trainer, model, dataset_train, args)
     scheduler = make_scheduler(args.scheduler, trainer.optimizer, args)
