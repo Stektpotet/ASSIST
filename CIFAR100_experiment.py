@@ -85,7 +85,7 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
 def prepare_datasets():
     transform = transforms.Compose([
         transforms.ToTensor(), # TODO: Find normalisation params for CIFAR100
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
     transform_augmented = transforms.Compose([
@@ -103,72 +103,72 @@ def prepare_datasets():
     dataset_train_unaugmented = CIFAR10("./data/", download=True, transform=transform)
     return dataset_train, dataset_test, dataset_train_unaugmented
 
-
-class BeliefMetrics(Trackable):
-    def __init__(self, dataloader: DataLoader, num_classes: int = 10, interval: int = 1, gif_duration: float = 5):
-        super().__init__(interval)
-        self._interval = interval
-        self._dataloader = dataloader
-        self._num_classes = num_classes
-        self._beliefs = torch.empty((len(self._dataloader.dataset), self._num_classes), requires_grad=False, device='cuda:0')
-        self._labels = torch.empty(len(self._dataloader.dataset), dtype=torch.int, requires_grad=False, device='cuda:0')
-        self._imgs = []
-        self._duration = gif_duration
-
-    @property
-    def _ms_per_frame(self):
-        return self._duration * (1000 / len(self._imgs))
-
-    def get_belief_dataframe(self):
-        sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
-        return pd.DataFrame({'label': self._labels.detach().cpu().numpy()}).join(pd.DataFrame(sorted_beliefs.numpy()))
-
-    def plot_classwise_distributions(self, path):
-        l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
-        df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
-        plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(2, 5), sharex=True,
-                                                                              figsize=(22, 9), whis=(0, 100))
-        f = plots[0].get_figure()
-        f.savefig(path+'.png')
-
-    def get_classwise_distributions_figure(self):
-        l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
-        df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
-        plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(2, 5), sharex=True,
-                                                                              figsize=(22, 9), whis=(0, 100))
-        return plots[0].get_figure()
-
-    def update(self, model: nn.Module):
-        with torch.no_grad():
-            i = 0
-            for batch, (x, y) in enumerate(self._dataloader):
-                batch_beliefs = softmax(model(x.cuda()), 1)
-                self._beliefs[i:i + len(batch_beliefs)] = batch_beliefs
-                self._labels[i:i + len(y)] = y
-                i += len(batch_beliefs)
-
-    def plot_softmax_distribution(self):
-        sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
-
-        l_max, h_min = sorted_beliefs[:, 0].max(), sorted_beliefs[:, 9].min()
-
-        plt.axhline(y=l_max, color="red", linestyle=(0, (5, 5)))
-        plt.axhline(y=h_min, color="blue", linestyle=(5, (5, 5)))
-        plt.boxplot(torch.transpose(sorted_beliefs, 0, 1), showfliers=False, whis=(0, 100), zorder=1)
-        plt.ylabel("Belief Strength")
-        plt.xlabel("Classes")
-        plt.show()
-
-    def save_gif(self, name):
-        self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=self._ms_per_frame, loop=0)
-
-    def __call__(self, model: nn.Module, epoch: int, *args, **kwargs):
-        if epoch % self._interval != 0:
-            return
-        # self.plot_softmax_distribution(model)
-        self.update(model)
-        self._imgs.append(fig2img(self.get_classwise_distributions_figure()))
-        # wandb.log({'Belief Strength': plt})
+#
+# class BeliefMetrics(Trackable):
+#     def __init__(self, dataloader: DataLoader, num_classes: int = 100, interval: int = 1, gif_duration: float = 5):
+#         super().__init__(interval)
+#         self._interval = interval
+#         self._dataloader = dataloader
+#         self._num_classes = num_classes
+#         self._beliefs = torch.empty((len(self._dataloader.dataset), self._num_classes), requires_grad=False, device='cuda:0')
+#         self._labels = torch.empty(len(self._dataloader.dataset), dtype=torch.int, requires_grad=False, device='cuda:0')
+#         self._imgs = []
+#         self._duration = gif_duration
+#
+#     @property
+#     def _ms_per_frame(self):
+#         return self._duration * (1000 / len(self._imgs))
+#
+#     def get_belief_dataframe(self):
+#         sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
+#         return pd.DataFrame({'label': self._labels.detach().cpu().numpy()}).join(pd.DataFrame(sorted_beliefs.numpy()))
+#
+#     def plot_classwise_distributions(self, path):
+#         l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
+#         df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
+#         plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(10, 10), sharex=True,
+#                                                                               figsize=(42, 42), whis=(10, 90))
+#         f = plots[0].get_figure()
+#         f.savefig(path+'.png')
+#
+#     def get_classwise_distributions_figure(self):
+#         l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
+#         df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
+#         plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(2, 5), sharex=True,
+#                                                                               figsize=(22, 9), whis=(10, 90))
+#         return plots[0].get_figure()
+#
+#     def update(self, model: nn.Module):
+#         with torch.no_grad():
+#             i = 0
+#             for batch, (x, y) in enumerate(self._dataloader):
+#                 batch_beliefs = softmax(model(x.cuda()), 1)
+#                 self._beliefs[i:i + len(batch_beliefs)] = batch_beliefs
+#                 self._labels[i:i + len(y)] = y
+#                 i += len(batch_beliefs)
+#
+#     def plot_softmax_distribution(self):
+#         sorted_beliefs = torch.sort(self._beliefs, 1).values.detach().cpu()
+#
+#         l_max, h_min = sorted_beliefs[:, 0].max(), sorted_beliefs[:, 9].min()
+#
+#         plt.axhline(y=l_max, color="red", linestyle=(0, (5, 5)))
+#         plt.axhline(y=h_min, color="blue", linestyle=(5, (5, 5)))
+#         plt.boxplot(torch.transpose(sorted_beliefs, 0, 1), showfliers=False, whis=(10, 90), zorder=1)
+#         plt.ylabel("Belief Strength")
+#         plt.xlabel("Classes")
+#         plt.show()
+#
+#     def save_gif(self, name):
+#         self._imgs[0].save(name + '.gif', save_all=True, append_images=self._imgs[1:], optimize=False, duration=self._ms_per_frame, loop=0)
+#
+#     def __call__(self, model: nn.Module, epoch: int, *args, **kwargs):
+#         if epoch % self._interval != 0:
+#             return
+#         # self.plot_softmax_distribution(model)
+#         self.update(model)
+#         self._imgs.append(fig2img(self.get_classwise_distributions_figure()))
+#         # wandb.log({'Belief Strength': plt})
 
 
 if __name__ == '__main__':
@@ -189,8 +189,8 @@ if __name__ == '__main__':
         (1, DatasetEvaluator("Test", loader_test, nn.CrossEntropyLoss(reduction='none')))
     )
 
-    belief_tracker_test = BeliefMetrics(loader_test, interval=10)
-    belief_tracker_train = BeliefMetrics(loader_train, interval=10)
+    # belief_tracker_test = BeliefMetrics(loader_test, interval=10)
+    # belief_tracker_train = BeliefMetrics(loader_train, interval=10)
 
     config = prepare_config(args)
 
@@ -198,31 +198,31 @@ if __name__ == '__main__':
     wandb.watch(model)
 
     trainer.on_start_training += lambda m: evaluator.evaluate(m, 0)
-    trainer.on_start_training += lambda m: belief_tracker_test(m, 0)
-    trainer.on_start_training += lambda m: belief_tracker_train(m, 0)
+    # trainer.on_start_training += lambda m: belief_tracker_test(m, 0)
+    # trainer.on_start_training += lambda m: belief_tracker_train(m, 0)
     trainer.on_end_epoch += evaluator.evaluate
-    trainer.on_end_epoch += belief_tracker_test
-    trainer.on_end_epoch += belief_tracker_train
+    # trainer.on_end_epoch += belief_tracker_test
+    # trainer.on_end_epoch += belief_tracker_train
 
     trainer.train(model, config['num_epochs'])
 
-    test_fig = belief_tracker_test.get_classwise_distributions_figure()
-    train_fig = belief_tracker_train.get_classwise_distributions_figure()
+    # test_fig = belief_tracker_test.get_classwise_distributions_figure()
+    # train_fig = belief_tracker_train.get_classwise_distributions_figure()
 
-    wandb.log({'beliefs/test distribution': wandb.Image(test_fig, caption="Test belief distribution")})
-    wandb.log({'beliefs/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
+    # wandb.log({'beliefs/test distribution': wandb.Image(test_fig, caption="Test belief distribution")})
+    # wandb.log({'beliefs/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
 
-    save_path = os.path.join(wandb.run.dir, "beliefs")
+    # save_path = os.path.join(wandb.run.dir, "media/images/beliefs")
+    #
+    # if not os.path.exists(save_path):
+    #     os.mkdir(save_path)
 
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-
-    belief_tracker_test.get_belief_dataframe().to_pickle(os.path.join(save_path, "test_beliefs.pkl"))
-    belief_tracker_train.get_belief_dataframe().to_pickle(os.path.join(save_path, "train_beliefs.pkl"))
-    belief_tracker_test.plot_classwise_distributions(os.path.join(save_path, "test_beliefs"))
-    belief_tracker_train.plot_classwise_distributions(os.path.join(save_path, "train_beliefs"))
-    belief_tracker_test.save_gif(os.path.join(save_path, "test_beliefs"))
-    belief_tracker_train.save_gif(os.path.join(save_path, "train_beliefs"))
-    wandb.save('beliefs/*')
+    # belief_tracker_test.get_belief_dataframe().to_pickle(os.path.join(save_path, "test_beliefs.pkl"))
+    # belief_tracker_train.get_belief_dataframe().to_pickle(os.path.join(save_path, "train_beliefs.pkl"))
+    # belief_tracker_test.plot_classwise_distributions(os.path.join(save_path, "test_beliefs"))
+    # belief_tracker_train.plot_classwise_distributions(os.path.join(save_path, "train_beliefs"))
+    # belief_tracker_test.save_gif(os.path.join(save_path, "test_beliefs"))
+    # belief_tracker_train.save_gif(os.path.join(save_path, "train_beliefs"))
+    # wandb.save('media/images/beliefs/*')
 
     wandb.finish()

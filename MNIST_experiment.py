@@ -117,7 +117,7 @@ class BeliefMetrics(Trackable):
         l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
         df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
         plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(2, 5), sharex=True,
-                                                                              figsize=(22, 9), whis=(0, 100))
+                                                                              figsize=(22, 9), whis=(10, 90))
         f = plots[0].get_figure()
         f.savefig(path+'.png')
 
@@ -125,7 +125,7 @@ class BeliefMetrics(Trackable):
         l, b = self._labels.detach().cpu().numpy(), self._beliefs.detach().cpu().numpy()
         df = pd.DataFrame({'label': l}).join(pd.DataFrame(b))
         plots = df.loc[:, df.columns != 'label'].groupby(df['label']).boxplot(layout=(2, 5), sharex=True,
-                                                                              figsize=(22, 9), whis=(0, 100))
+                                                                              figsize=(22, 9), whis=(10, 90))
         return plots[0].get_figure()
 
     def update(self, model: nn.Module):
@@ -144,7 +144,7 @@ class BeliefMetrics(Trackable):
 
         plt.axhline(y=l_max, color="red", linestyle=(0, (5, 5)))
         plt.axhline(y=h_min, color="blue", linestyle=(5, (5, 5)))
-        plt.boxplot(torch.transpose(sorted_beliefs, 0, 1), showfliers=False, whis=(0, 100), zorder=1)
+        plt.boxplot(torch.transpose(sorted_beliefs, 0, 1), showfliers=False, whis=(10, 90), zorder=1)
         plt.ylabel("Belief Strength")
         plt.xlabel("Classes")
         plt.show()
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     wandb.log({'beliefs/test distribution':  wandb.Image(test_fig, caption="Test belief distribution")})
     wandb.log({'beliefs/train distribution': wandb.Image(train_fig, caption="Train belief distribution")})
 
-    save_path = os.path.join(wandb.run.dir, "beliefs")
+    save_path = os.path.join(wandb.run.dir, "media/images/beliefs")
 
     if not os.path.exists(save_path):
         os.mkdir(save_path)
@@ -213,6 +213,6 @@ if __name__ == '__main__':
     belief_tracker_train.plot_classwise_distributions(os.path.join(save_path, "train_beliefs"))
     belief_tracker_test.save_gif(os.path.join(save_path, "test_beliefs"))
     belief_tracker_train.save_gif(os.path.join(save_path, "train_beliefs"))
-    wandb.save('beliefs/*')
+    wandb.save('media/images/beliefs/*')
 
     wandb.finish()
