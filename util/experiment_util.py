@@ -9,10 +9,13 @@ from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR, ExponentialLR
 
 # from Samplers import AccuracyFilteredSampler
-from arg_utils import from_config
+from torchvision.datasets import MNIST, CIFAR10, CIFAR100
+
+from util.arg_utils import from_config
+from datasets.catchsnap import CatchSnap
 from pytorch_cifar import models3x32x32, models1x32x32
 from trainers import AccumulativeAccuracyFilteringTrainer, ArchetypeTrainer, AccumulativeSoftmaxMarginFilteringTrainer, \
-    AbstractTrainer
+    AbstractTrainer, SoftmaxMarginFilteringTrainer, SoftmaxMarginFilteringTrainer2
 
 __TModel = TypeVar('__TModel', bound=nn.Module)
 __TTrainer = TypeVar('__TTrainer', bound=AbstractTrainer)
@@ -134,6 +137,17 @@ def models_1x32x32() -> Tuple[str, ...]:
         'fcnet100_mnist', 'fcnet1000_mnist', 'fcnet3000_mnist',
     )
 
+def __datasets() -> Dict[str, Type[Union[MNIST,
+                                         CIFAR10,
+                                         CIFAR100,
+                                         CatchSnap]]]:
+    return {
+        'mnist': MNIST,
+        'cifar10': CIFAR10,
+        'cifar100': CIFAR100,
+        'catchsnap': CatchSnap
+    }
+
 
 def __trainers() -> Dict[str, Type[Union[ArchetypeTrainer,
                                          AccumulativeAccuracyFilteringTrainer,
@@ -141,7 +155,7 @@ def __trainers() -> Dict[str, Type[Union[ArchetypeTrainer,
     return {
         'archetype': ArchetypeTrainer,
         'accacc': AccumulativeAccuracyFilteringTrainer,
-        'qmargin': AccumulativeSoftmaxMarginFilteringTrainer,
+        'qmargin': SoftmaxMarginFilteringTrainer2,
     }
 
 

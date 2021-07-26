@@ -11,7 +11,6 @@ def filtered(config: Dict[str, Any], exclude: Tuple[str, ...]):
     return filtered
 
 
-
 def configuration_dict(*configs: Dict[str, Any], **kwargs) -> Dict[str, Any]:
     merged = {}
     for cfg in (*configs, kwargs):

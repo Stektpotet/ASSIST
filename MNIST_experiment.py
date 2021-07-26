@@ -2,26 +2,20 @@ import argparse
 import os
 
 import pandas as pd
-import inspect
-import traceback
-from datetime import datetime
-from typing import Tuple, Dict, Any
+from typing import Dict, Any
 
 import matplotlib.pyplot as plt
 import torch
 import torchvision
 from torch import nn, softmax
-from torch.optim import SGD
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 
 from eventsystem.trackable import Trackable
-from pytorch_cifar.models1x32x32 import LeNet, FCNet100
 
-from experiment_util import experiment_argparse, models_1x32x32, make_model, make_trainer, make_scheduler
+from util.experiment_util import experiment_argparse, models_1x32x32, make_model, make_trainer, make_scheduler
 
 from evaluation import Evaluator, DatasetEvaluator
-from trainers import AccumulativeAccuracyFilteringTrainer, ArchetypeTrainer, AccumulativeSoftmaxMarginFilteringTrainer
 import wandb
 from util.image_util import fig2img
 

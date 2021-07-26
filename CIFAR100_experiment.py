@@ -1,31 +1,16 @@
 import argparse
-import os
 
-import pandas as pd
-import inspect
-import traceback
-from datetime import datetime
-from typing import Tuple, Dict, Any
+from typing import Dict, Any
 
-import matplotlib.pyplot as plt
-import torch
-import torchvision
-from torch import nn, softmax
-from torch.optim import SGD
-from torch.utils.data import DataLoader, Dataset
+from torch import nn
+from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.datasets import MNIST, CIFAR10, CIFAR100
+from torchvision.datasets import CIFAR100
 
-from eventsystem.trackable import Trackable
-from experiment_util import make_model, make_trainer, make_scheduler, experiment_argparse, models_1x32x32, \
-    models_3x32x32
-from pytorch_cifar.models3x32x32 import LeNet, FCNet100
+from util.experiment_util import make_model, make_trainer, make_scheduler, experiment_argparse, models_3x32x32
 
 from evaluation import Evaluator, DatasetEvaluator
-from trainers import AccumulativeAccuracyFilteringTrainer, ArchetypeTrainer, AccumulativeSoftmaxMarginFilteringTrainer
 import wandb
-from util.image_util import fig2img
-
 
 
 def parse_args() -> argparse.Namespace:
