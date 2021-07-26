@@ -7,6 +7,7 @@ import torchvision.transforms as T
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
 from util.batching_util import default_cifar_augmentation, augment_batch, DataLoaderOnDevice
@@ -83,9 +84,8 @@ def prepare_datasets():
     # dataset_train = CIFAR10("./data/", download=True, transform=transform)
     return dataset_train, dataset_test
 
-
-def qmargin_accumulate(loader: DataLoader, model: nn.Module, model_device, batch_size: int,
-                       augmentation: nn.Module = default_cifar_augmentation ,
+def qmargin_accumulate(loader: DataLoader, model: nn.Module, batch_size: int,
+                       augmentation: nn.Module = default_cifar_augmentation,
                        q: float = 1.0, margin: float = 0.4) -> Iterator[Tuple[torch.Tensor, torch.Tensor]]:
         accumulated_data: List[torch.Tensor] = []
         accumulated_labels: List[torch.Tensor] = []
@@ -94,7 +94,6 @@ def qmargin_accumulate(loader: DataLoader, model: nn.Module, model_device, batch
 
         model.eval()
         for batch in loader:
-
             x, y = augment_batch(batch, augmentation)
             with torch.no_grad():
                 model_output = model(x)
@@ -136,6 +135,8 @@ if __name__ == '__main__':
     args = parse_args()
     args.batch_size = 48
     args.num_classes = 23
+    args.num_epochs = 400
+    args.num_workers = 4
 
     dataset_train, dataset_test = prepare_datasets()
 
@@ -148,8 +149,8 @@ if __name__ == '__main__':
     # trainer = make_trainer(args.trainer, model, dataset_train, args)
     # scheduler = make_scheduler(args.scheduler, trainer.optimizer, args)
 
-    train_loader = DataLoaderOnDevice(dataset_train, device, batch_size=args.batch_size, shuffle=True)
 
+    train_loader = DataLoaderOnDevice(dataset_train, device, batch_size=args.batch_size, shuffle=True)
     loader_test = DataLoaderOnDevice(dataset_test, device, batch_size=16, num_workers=args.num_workers)
 
     evaluator = Evaluator(
@@ -160,6 +161,9 @@ if __name__ == '__main__':
 
     config = prepare_config(args)
 
+    run = wandb.init(project='assist', entity='stektpotet', config=config, tags=config['tags'])
+    wandb.watch(model)
+
     aug_transform = nn.Sequential(
         T.RandomHorizontalFlip(),
         T.RandomVerticalFlip(),
@@ -168,15 +172,9 @@ if __name__ == '__main__':
         NormalizeExcludingMask((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     )
 
-    run = wandb.init(project='assist', entity='stektpotet', config=config, tags=config['tags'])
-    wandb.watch(model)
-
-
     evaluator.evaluate(model, 0)
-    for epoch in tqdm(range(1, 10 + 1)):
-        for batch_nr, batch in enumerate(train_loader):
-            x, y = augment_batch(batch, aug_transform)
-            # for batch, (x, y) in enumerate(qmargin_accumulate(train_loader, model, model_device, config['batch_size'], augmentation)):
+    for epoch in tqdm(range(1, config['num_epochs'] + 1)):
+        for batch, (x, y) in enumerate(qmargin_accumulate(train_loader, model, config['batch_size'], aug_transform)):
             optimizer.zero_grad()
             model_output = model(x)
             losses = loss_fn(model_output, y)
@@ -189,8 +187,6 @@ if __name__ == '__main__':
     wandb.finish()
 
 
-
-    # trainer.train(model, 10)
 
     # test_fig = belief_tracker_test.get_classwise_distributions_figure()
     # train_fig = belief_tracker_train.get_classwise_distributions_figure()

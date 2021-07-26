@@ -51,8 +51,7 @@ default_cifar_augmentation = torch.nn.Sequential(
 
 def augment_batch(batch: torch.Tensor, augmentation: nn.Module = default_cifar_augmentation) -> Tuple[
     torch.Tensor, torch.Tensor]:
-    x, y = batch
-    return augmentation(x).contiguous(), y
+    return augmentation(batch[0]).contiguous(), batch[1]
 
 
 def create_batch_transforming_collate_fn(batch_transform: torch.nn.Module = None):

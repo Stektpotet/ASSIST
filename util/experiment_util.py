@@ -204,7 +204,7 @@ def experiment_argparse(parser: ArgumentParser, models: Tuple[str]):
     parser.add_argument('-lr', '--learning_rate', default=0.01, type=float, help='optimizer learning rate')
     parser.add_argument('--momentum', default=0, type=float, help='optimizer momentum')
     parser.add_argument('--weight_decay', default=0, type=float, help='optimizer weight decay')
-    parser.add_argument('-t', '--trainer', default='archetype', type=str, choices=trainers.keys(),
+    parser.add_argument('-t', '--trainer', default='qmargin', type=str, choices=trainers.keys(),
                         help='which trainer to use')
     parser.add_argument('--name', default=parser.description, type=str, help="name of the experiment")
     parser.add_argument('--tags', default=None, type=str, help="tags of the experiment", nargs='+')
