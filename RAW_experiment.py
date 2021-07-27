@@ -136,7 +136,6 @@ if __name__ == '__main__':
     args.batch_size = 48
     args.num_classes = 23
     args.num_epochs = 400
-    args.num_workers = 4
 
     dataset_train, dataset_test = prepare_datasets()
 
