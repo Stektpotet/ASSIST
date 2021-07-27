@@ -43,7 +43,7 @@ from torchvision.datasets.folder import default_loader
 
 
 class CatchSnap(ImageFolder):
-    __root_dir = os.path.join(os.path.dirname(__file__), "..\\data\\catchsnap\\split")
+    __root_dir = os.path.join(os.path.dirname(__file__), "..", "data", "catchsnap", "split")
 
     def __init__(self,
                  train=True,
