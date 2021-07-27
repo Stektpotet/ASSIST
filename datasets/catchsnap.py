@@ -46,10 +46,10 @@ class CatchSnap(ImageFolder):
     __root_dir = os.path.join(os.path.dirname(__file__), "..\\data\\catchsnap\\split")
 
     def __init__(self,
-                 train: bool = True,
-                 transform: Optional[Callable] = None,
-                 target_transform: Optional[Callable] = None,
-                 loader: Callable[[str], Any] = default_loader,
-                 is_valid_file: Optional[Callable[[str], bool]] = None):
+                 train=True,
+                 transform=None,
+                 target_transform=None,
+                 loader=default_loader,
+                 is_valid_file=None):
         dir = os.path.join(self.__root_dir, 'train' if train else 'test')
         super().__init__(dir, transform, target_transform, loader, is_valid_file)
