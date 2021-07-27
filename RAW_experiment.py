@@ -98,22 +98,27 @@ def qmargin_accumulate(loader: DataLoader, model: nn.Module, batch_size: int,
             with torch.no_grad():
                 model_output = model(x)
                 beliefs = torch.softmax(model_output, dim=1)
+                del model_output
                 sorted_beliefs = torch.sort(beliefs, dim=1).values
-                # sorted_beliefs_idx = torch.argsort(beliefs, dim=1)
-                top = sorted_beliefs[:, -1]
-                # top_idx = sorted_beliefs_idx[:, -1]  # the highest belief index per sample
+
+                # the highest belief per sample -> i.e. which class samples would be classified as
+                top = sorted_beliefs[:, -1] # top class belief strengths
 
                 num_classes = len(beliefs[0]) - 1
-                # get the class at q between [0..n-1] of the n belief-sorted classes
-                q_class = int(q * (num_classes - 1) + 0.5)
-                # q_idx = sorted_beliefs_idx[:, q_class]
-                qs = sorted_beliefs[:, q_class]
-                decision_distance = top - qs
+
+                # get the belief index from q, between [0..n-1] of the n belief-sorted classes
+                q_class = int(q * (num_classes - 1) + 0.5)  # q_class \in n, n != top
+
+                qs = sorted_beliefs[:, q_class] # q class belief strengths
+                decision_distance = top - qs    # how far apart the belief strengths are (decision margin/boundary)
+                # mask of samples where the decision margin is too narrow
                 inside_margin = torch.nonzero(decision_distance < margin).view(-1)
+                del beliefs, top, qs, sorted_beliefs, decision_distance
 
                 accumulated_data.append(x[inside_margin])
                 accumulated_labels.append(y[inside_margin])
                 current_accumulation += len(inside_margin)
+                del inside_margin
 
             if current_accumulation >= batch_size:
                 model.train()
@@ -133,9 +138,9 @@ def qmargin_accumulate(loader: DataLoader, model: nn.Module, batch_size: int,
 
 if __name__ == '__main__':
     args = parse_args()
-    args.batch_size = 48
+    args.batch_size = 32
     args.num_classes = 23
-    args.num_epochs = 400
+    args.num_epochs = 5
 
     dataset_train, dataset_test = prepare_datasets()
 
