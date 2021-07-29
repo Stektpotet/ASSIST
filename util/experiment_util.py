@@ -195,8 +195,8 @@ def experiment_argparse(parser: ArgumentParser, models: Tuple[str]):
     schedulers = __schedulers()
 
     parser.add_argument('--seed', default=0, type=int, help='Seed for random generation (used in models3x32x32)')
-    parser.add_argument('-e', '--num_epochs', default=300, type=int, help='number of epochs to train for')
-    parser.add_argument('-bs', '--batch_size', default=256, type=int, help='number of samples to put in a batch')
+    parser.add_argument('-e', '--num_epochs', default=400, type=int, help='number of epochs to train for')
+    parser.add_argument('-bs', '--batch_size', default=128, type=int, help='number of samples to put in a batch')
     parser.add_argument('-qs', '--quantiles', default=[0.5, 0.9, 0.99], type=float, nargs='*',
                         help='at which quantiles should the loss additionally be plotted')
     parser.add_argument('-o', '--optimizer', default='sgd', type=str, choices=optimizers.keys(),
@@ -204,7 +204,7 @@ def experiment_argparse(parser: ArgumentParser, models: Tuple[str]):
     parser.add_argument('-lr', '--learning_rate', default=0.01, type=float, help='optimizer learning rate')
     parser.add_argument('--momentum', default=0, type=float, help='optimizer momentum')
     parser.add_argument('--weight_decay', default=0, type=float, help='optimizer weight decay')
-    parser.add_argument('-t', '--trainer', default='qmargin', type=str, choices=trainers.keys(),
+    parser.add_argument('-t', '--trainer', default='archetype', type=str, choices=trainers.keys(),
                         help='which trainer to use')
     parser.add_argument('--name', default=parser.description, type=str, help="name of the experiment")
     parser.add_argument('--tags', default=None, type=str, help="tags of the experiment", nargs='+')

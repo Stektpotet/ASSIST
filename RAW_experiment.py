@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
-from util.batching_util import default_cifar_augmentation, augment_batch, DataLoaderOnDevice
+from util.batching_util import default_cifar_augmentation, augment_batch
 from datasets.catchsnap import CatchSnap
-from datasets.modified_augmentations import ColorJitterExcludingMask, NormalizeExcludingMask
+from datasets.old_modified_augmentations import ColorJitterExcludingMask, NormalizeExcludingMask
 from util.experiment_util import make_model, experiment_argparse, models_3x32x32
 from models.SimpleClassifierWBNorm import SimpleClassifierWBNorm
 
@@ -74,15 +74,19 @@ def prepare_config(args: argparse.Namespace, **kwargs: Dict[str, Any]):
     return config
 
 def prepare_datasets():
-    transform = T.Compose([
+    aug_transform = T.Compose([
+        T.RandomHorizontalFlip(),
+        T.RandomVerticalFlip(),
+        T.RandomRotation(30),
+        ColorJitterExcludingMask(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
         T.ToTensor(),
+        NormalizeExcludingMask((.5, .5, .5), (.5, .5, .5))
     ])
 
-    dataset_test = CatchSnap(train=False, transform=transform)
-    dataset_train = CatchSnap(transform=transform)
-    # dataset_test = CIFAR10("./data/", train=False, download=True, transform=transform)
-    # dataset_train = CIFAR10("./data/", download=True, transform=transform)
-    return dataset_train, dataset_test
+    dataset_test = CatchSnap("./data/", train=False, transform=aug_transform)
+    dataset_train = CatchSnap("./data/", transform=aug_transform)
+    unaugmented_train = CatchSnap('./data', transform=T.ToTensor())
+    return dataset_train, dataset_test, unaugmented_train
 
 def qmargin_accumulate(loader: DataLoader, model: nn.Module, batch_size: int,
                        augmentation: nn.Module = default_cifar_augmentation,
@@ -138,11 +142,11 @@ def qmargin_accumulate(loader: DataLoader, model: nn.Module, batch_size: int,
 
 if __name__ == '__main__':
     args = parse_args()
-    args.batch_size = 32
+    # args.batch_size = 512
     args.num_classes = 23
-    args.num_epochs = 5
+    # args.num_epochs = 5
 
-    dataset_train, dataset_test = prepare_datasets()
+    dataset_train, dataset_test, unaugmented_train = prepare_datasets()
 
     model = make_model(SimpleClassifierWBNorm, args)
     device = next(model.parameters()).device
@@ -153,13 +157,22 @@ if __name__ == '__main__':
     # trainer = make_trainer(args.trainer, model, dataset_train, args)
     # scheduler = make_scheduler(args.scheduler, trainer.optimizer, args)
 
+    aug_transform = T.Compose([
+        T.RandomHorizontalFlip(),
+        T.RandomVerticalFlip(),
+        T.RandomRotation(30),
+        ColorJitterExcludingMask(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
+        T.ToTensor(),
+        NormalizeExcludingMask((.5, .5, .5), (.5, .5, .5))
+    ])
 
-    train_loader = DataLoaderOnDevice(dataset_train, device, batch_size=args.batch_size, shuffle=True)
-    loader_test = DataLoaderOnDevice(dataset_test, device, batch_size=16, num_workers=args.num_workers)
+    train_loader = DataLoader(dataset_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    unaugmented_train_loader = DataLoader(unaugmented_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    loader_test = DataLoader(dataset_test, batch_size=args.batch_size, num_workers=args.num_workers)
 
     evaluator = Evaluator(
         wandb,
-        (5, DatasetEvaluator("Train", train_loader, nn.CrossEntropyLoss(reduction='none'))),
+        (5, DatasetEvaluator("Train", unaugmented_train_loader, nn.CrossEntropyLoss(reduction='none'))),
         (1, DatasetEvaluator("Test", loader_test, nn.CrossEntropyLoss(reduction='none')))
     )
 
@@ -168,23 +181,26 @@ if __name__ == '__main__':
     run = wandb.init(project='assist', entity='stektpotet', config=config, tags=config['tags'])
     wandb.watch(model)
 
-    aug_transform = nn.Sequential(
-        T.RandomHorizontalFlip(),
-        T.RandomVerticalFlip(),
-        T.RandomRotation(30),
-        ColorJitterExcludingMask(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
-        NormalizeExcludingMask((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    )
+    # aug_transform = nn.Sequential(
+    #     T.RandomHorizontalFlip(),
+    #     T.RandomVerticalFlip(),
+    #     T.RandomRotation(30),
+    #     ColorJitterExcludingMask(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
+    #     NormalizeExcludingMask((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    # )
 
     evaluator.evaluate(model, 0)
     for epoch in tqdm(range(1, config['num_epochs'] + 1)):
-        for batch, (x, y) in enumerate(qmargin_accumulate(train_loader, model, config['batch_size'], aug_transform)):
+        for batch_nr, (x, y) in enumerate(train_loader):
+        #     x, y = augment_batch(batch, aug_transform)
+        # for batch, (x, y) in enumerate(qmargin_accumulate(train_loader, model, config['batch_size'], aug_transform)):
             optimizer.zero_grad()
             model_output = model(x)
             losses = loss_fn(model_output, y)
             losses.backward()
             optimizer.step()
 
+        # print("epoch completed! Evaluating...")
         scheduler.step()
         evaluator.evaluate(model, epoch)
 
